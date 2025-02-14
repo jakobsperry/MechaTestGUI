@@ -1,0 +1,3 @@
+([('main',
+   '/Users/jakobsperry/Desktop/Python_playground/MechaApp/dist/main',
+   'EXECUTABLE')],)
