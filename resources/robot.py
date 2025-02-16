@@ -20,7 +20,6 @@ class Robot:
     def moveToPos(self, pose):
         self.pose = pose
         self.getPose()
-        
 
     def moveLinVel(self, vector, runtime):
         self.pose += vector

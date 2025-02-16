@@ -1,5 +1,6 @@
 from robot import Robot
 from tkinter import filedialog
+import math
 import numpy as np
 import time
 import csv
@@ -16,6 +17,7 @@ class Test:
         self.pose_data = self.empty_array.copy()
         self.x_data = self.empty_x_array.copy()
         self.time_data = self.empty_x_array.copy()
+        self.sampleTime_data = self.empty_x_array.copy()
 
         
         self.test_vector = np.zeros([6])
@@ -33,29 +35,29 @@ class Test:
 
         self.curr_pose = np.zeros(6)
 
-        self.time_interval = 0.01
+        self.time_interval = 60
 
         self.setup_test = True
 
         self.speed = 0.5
 
 
-    def updateData(self, xValue):
+    def updateData(self, xValue, sample_time):
         # print(xValue)
         self.x_data[self.dataIndex] = xValue
-        # print(self.x_data)
+        self.sampleTime_data[self.dataIndex] = sample_time
         self.time_data[self.dataIndex] = self.getRuntime()
         self.pose_data[self.dataIndex] = self.robot.getPose()
         self.wrench_data[self.dataIndex] = self.robot.getWrench()
 
     def getPoseData(self):
-        return self.pose_data[0:self.dataIndex, :]
+        return self.pose_data[0:(self.dataIndex), :]
 
     def getWrencheData(self):
-        return self.wrench_data[0:self.dataIndex, :]
+        return self.wrench_data[0:(self.dataIndex), :]
 
     def getXData(self):
-        return self.x_data[0:self.dataIndex]
+        return self.x_data[0:(self.dataIndex)]
 
 
     def getRuntime(self):
@@ -75,7 +77,8 @@ class Test:
             distance = np.linalg.norm(self.robot.getPose()[3:6] - self.start_pose[3:6])
         else:
             distance = np.linalg.norm(self.robot.getPose()[0:3] - self.start_pose[0:3])
-        # print(distance)
+        if math.isnan(distance):
+            return 0.0
         return distance
 
 
@@ -86,7 +89,8 @@ class Test:
             # print(self.start_pose)
         
         self.curr_time = time.time()
-        if ((self.curr_time - self.last_time) > self.time_interval):
+        sample_time = (self.curr_time - self.last_time) * 1000
+        if (sample_time > self.time_interval):
             self.last_time = self.curr_time
             distance = self.calculateDistance()
             
@@ -94,24 +98,28 @@ class Test:
             vel_vector = self.test_vector/max * self.speed
 
             self.robot.moveLinVel(vel_vector, self.getRuntime())
-            print(distance)
-            self.updateData(distance)
-            self.dataIndex += 1
+            # print(distance)
             direction = np.sign(self.test_vector)
             curr_pose = self.robot.getPose()
-            if np.any((direction > 0) & (curr_pose > (self.start_pose + self.test_vector))) | np.any((direction < 0) & (curr_pose < (self.start_pose + self.test_vector))):
+            if np.any((direction > 0) & (curr_pose > (self.start_pose + self.test_vector))) | np.any((direction < 0) & (curr_pose < (self.start_pose + self.test_vector))) or np.all(self.test_vector == 0):
                 self.setup_test = True
                 return True
+            self.updateData(distance, sample_time)
+            self.dataIndex += 1
+            
+
+    def goToRetract(self, startPose, retract):
+        self.robot.pose = np.array(np.array(startPose) + np.array(retract))
 
 
     def align(self):
         self.curr_time = time.time()
-        if ((self.curr_time - self.last_time) > self.time_interval):
+        sample_time = (self.curr_time - self.last_time) * 1000
+        if (sample_time > self.time_interval):
             self.last_time = self.curr_time
-
             runtime = self.getRuntime()
             self.robot.align(runtime, self.align_vector)
-            self.updateData(runtime)
+            self.updateData(runtime, sample_time)
             self.dataIndex += 1
 
             if(np.all((self.robot.getWrench()*self.align_vector) < 0.005)):
@@ -123,11 +131,21 @@ class Test:
         self.pose_data = self.empty_array.copy()
         self.time_data = self.empty_x_array.copy()
         self.x_data = self.empty_x_array.copy()
+        self.sampleTime_data = self.empty_x_array.copy()
+
+    def jogRobot(self, vector):
+        self.curr_time = time.time()
+        sample_time = (self.curr_time - self.last_time) * 1000
+        if (sample_time > self.time_interval):
+            self.last_time = self.curr_time
+            runtime = self.getRuntime()
+            self.robot.moveLinVel(vector, self.getRuntime())
+            self.updateData(runtime, sample_time)
+            self.dataIndex += 1
 
 
-    
     def writeCSV(self, fileName):
-        header = np.array(["time (ms)", "x (mm)", "y (mm)", "z (mm)", "u (deg)", "v (deg)", "w (deg)", "Fx (N)", "Fy (N)", "Fz (N)", "Tx (Nm)", "Fy (Nm)", "Tz (Nm)"])
+        header = np.array(["time (ms)", "Sample time (ms)", "Calculated X Axis (mm, deg or ms)", "X (mm)", "Y (mm)", "Z (mm)", "U (deg)", "V (deg)", "W (deg)", "Fx (N)", "Fy (N)", "Fz (N)", "Tx (Nm)", "Fy (Nm)", "Tz (Nm)"])
         csv_filename = filedialog.asksaveasfilename(defaultextension='.csv', filetypes=[('CSV files', '*.csv')], initialfile=fileName)
         if not csv_filename:
             return  # User canceled save
@@ -136,7 +154,7 @@ class Test:
         with open(csv_filename, "w", newline="") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(header)
-            writer.writerows(np.concatenate((self.time_data, self.pose_data, self.wrench_Data), axis=1)[0:self.dataIndex, :])
+            writer.writerows(np.concatenate((self.time_data, self.sampleTime_data, self.x_data, self.pose_data, self.wrench_data), axis=1)[0:self.dataIndex, :])
 
         
 
