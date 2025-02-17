@@ -6,7 +6,6 @@ import time
 import csv
 
 class Test:
-
     def __init__ (self):
         self.robot = Robot()
         
@@ -35,12 +34,20 @@ class Test:
 
         self.curr_pose = np.zeros(6)
 
-        self.time_interval = 60
+        self.time_interval = 6
 
         self.setup_test = True
 
         self.speed = 0.5
 
+    def connect(self):
+        # self.robot.connect()
+        try :
+            self.robot.connect()
+            print("Connected to robot")
+        except Exception as e:
+            print("Error connecting to robot:", e)
+            return False
 
     def updateData(self, xValue, sample_time):
         # print(xValue)

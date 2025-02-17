@@ -1,7 +1,10 @@
 import os
 import sys
 
+from matplotlib.pylab import f
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "resources"))
+sys.path.append(os.path.join(os.path.dirname(__file__), "resources/UI_Pages"))
 
 import tkinter as tk
 from tkinter import ttk
@@ -16,10 +19,16 @@ from matplotlib.figure import Figure
 from test_controller import Test
 import csv
 
-import csv
+
+
 from datetime import datetime
 
 import json
+
+from page_test_setup import SetupTestPage  # Import MotionPage
+from page_run_test import RunTestPage  # Import MotionPage
+from style import get_ui_style # Import the style function defined in style.py 
+
 
 
 class SimpleApp:
@@ -29,43 +38,17 @@ class SimpleApp:
     
         self.root = root
         self.root.title("Noodle Test")
-
-        style = ttk.Style()
-        style.theme_use("clam")
-
-
-        style.configure("primary.TButton",
-            relief="flat",
-            padding=(10, 1),
-            font=("Helvetica", 12),
-            foreground = "white",
-            background="#4880e8")
-        style.map("primary.TButton", background=[("active", "#4880e8")])
-
-
-        style.configure("secondary.TButton",
-            relief="flat",
-            padding=(10, 1),
-            font=("Helvetica", 12),
-            foreground = "black",
-            background="white",)
-        style.map("secondary.TButton", background=[("active", "#white")])
-
-
-        style.configure("start.TButton",
-            relief="flat",
-            padding=(10, 12),
-            font=("Helvetica", 12),
-            foreground = "white",
-            background="#4bdb4b")
-        style.map("start.TButton", background=[("active", "#4bdb4b")])
-       
-
-        style.configure("heading.TLabel",
-            font=("Helvetica", 12,),
-            fg="gray",
-            background="#ebebeb")
-
+        self.root.resizable(False, False)  # or root.resizable(0, 0)
+        
+        ui_style = get_ui_style()
+        self.style = ui_style["style"]
+        # Assign UI dimension variables
+        self.padding = ui_style["padding"]
+        self.textbox_width = ui_style["textbox_width"]
+        self.button_width = ui_style["button_width"]
+        self.button_width2 = ui_style["button_width2"]
+        self.component_width = ui_style["component_width"]
+        
 
         # Example "test" object for data collection
         self.test = Test()
@@ -79,6 +62,8 @@ class SimpleApp:
         self.data = np.zeros((2000, 7))
 
         self.config_data = {
+            "Robot IP": "192.169.0.100",
+            "Sensor Port": "en13",
             "Test Name": "",
             "Start Pose": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             "Retract Vector": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -88,19 +73,26 @@ class SimpleApp:
 
         self.loadConfigFile("resources/TestConfigs/autosave.json")
         
-        self.padding = 10
-
-        self.textbox_width = 32
-        self.button_width = int(self.textbox_width/2-3)
-        self.button_width2 = int(self.textbox_width/3-3)
-        self.component_width = 4
-        
 
         # -------------------------------
         # 1) Frame: LEFT
         # -------------------------------
         leftframe = tk.Frame(root, background="#ebebeb")
-        leftframe.pack(side=tk.LEFT, padx=0, pady=2)
+        leftframe.pack(side=tk.LEFT, padx=0, pady=2, fill=tk.Y)
+
+        # -------------------------------
+        # 1) Frame: LEFT Menu
+        # -------------------------------
+
+        menu_frame = tk.Frame(leftframe, bg="gray")
+        menu_frame.pack(side=tk.TOP, padx=0, pady=0, fill=tk.X)
+
+        # Create buttons for each page
+        self.settings_button = ttk.Button(menu_frame, text="Setup", command=lambda: self.show_page("Setup"), style="secondary.TButton", width=self.button_width)
+        self.settings_button.pack(side=tk.LEFT, padx=0, pady=0)
+
+        self.test_button = ttk.Button(menu_frame, text="Test", command=lambda: self.show_page("Run"), style="secondary.TButton", width=self.button_width)
+        self.test_button.pack(side=tk.LEFT, padx=0, pady=0)
 
         # -------------------------------
         # 1) Frame: LEFT Padded
@@ -138,208 +130,10 @@ class SimpleApp:
 
         self.save_button = ttk.Button(save_congig_frame, text="Save Config", command=partial(self.saveConfig, False), style="primary.TButton", width=self.button_width)
         self.save_button.pack(side=tk.TOP, pady=2, padx=self.padding)
-
-
-        # -------------------------------
-        # Start Pose - Textboxes with Labels
-        # -------------------------------
-
-        self.padFrame = tk.Frame(frame)
-        self.padFrame.pack(pady=15, padx=0)
-
-        self.start_pose_label = ttk.Label(frame, text="Start Pose:", style="heading.TLabel", anchor="w")
-        self.start_pose_label.pack(pady=2, padx=0, anchor="w")
-
-        self.start_pose_frame = tk.Frame(frame)
-        self.start_pose_frame.pack(side=tk.TOP, padx=1, pady=1, fill=tk.X)
-
-        # List of labels to display above the entries
-        self.start_pose_entries = []
-        for i in range(6):
-            entry = ttk.Entry(self.start_pose_frame, width=5)
-            entry.grid(row=1, column=i, padx=1, pady=2)
-            entry.insert(0, self.config_data["Start Pose"][i])
-            self.start_pose_entries.append(entry)
-
-
-        # -------------------------------
-        # 3) Test Motion - Textboxes (Horizontally aligned)
-        # -------------------------------
-
-        self.padFrame = tk.Frame(frame)
-        self.padFrame.pack(pady=2, padx=0)
-
-        self.test_vector_label = ttk.Label(frame, text="Test Vector:", style="heading.TLabel", anchor="w")
-        self.test_vector_label.pack(pady=2, padx=0, anchor="w")
-
-
-        self.test_motion_frame = tk.Frame(frame)
-        self.test_motion_frame.pack(side=tk.TOP, padx=1, pady=1, fill=tk.X)
-
-        self.test_motion_entries = []
-        for i in range(6):
-            entry = ttk.Entry(self.test_motion_frame, width=5)
-            entry.grid(row=1, column=i, padx=1, pady=2)
-            entry.insert(0, self.config_data["Test Vector"][i])
-            self.test_motion_entries.append(entry)
-
-
-
-        # -------------------------------
-        # 3) Retract Vector
-        # -------------------------------
-
-        self.padFrame = tk.Frame(frame)
-        self.padFrame.pack(pady=2, padx=0)
-
-        self.retract_vector_label = ttk.Label(frame, text="Retract Vector:", style="heading.TLabel", anchor="w")
-        self.retract_vector_label.pack(pady=2, padx=0, anchor="w")
-
-
-        self.retract_vector_frame = tk.Frame(frame)
-        self.retract_vector_frame.pack(side=tk.TOP, padx=1, pady=1, fill=tk.X)
-
-        self.retract_vector_entries = []
-        for i in range(6):
-            entry = ttk.Entry(self.retract_vector_frame, width=5)
-            entry.grid(row=1, column=i, padx=1, pady=2)
-            entry.insert(0, self.config_data["Retract Vector"][i])
-            self.retract_vector_entries.append(entry)
-
-
-
-
-        # -------------------------------
-        # 1) Go To Frame
-        # -------------------------------
-
-        self.padFrame = tk.Frame(frame)
-        self.padFrame.pack(pady=15, padx=0)
-
-        self.goto_vector_label = ttk.Label(frame, text="Go To:", style="heading.TLabel", anchor="w")
-        self.goto_vector_label.pack(pady=2, padx=0, anchor="w")
-
-        config_goto_container = tk.Frame(frame)
-        config_goto_container.pack(side=tk.TOP, padx=0, pady=2)
-
-        # Create sub-frames for left and right
-        home_frame = tk.Frame(config_goto_container)
-        home_frame.grid(row=0, column=0, padx=0, pady=2, sticky="ew")  # Use grid and fill horizontally
-
-        retract_frame = tk.Frame(config_goto_container)
-        retract_frame.grid(row=0, column=1, padx=0, pady=2, sticky="ew")  # Same here, align horizontally
-        
-        test_frame = tk.Frame(config_goto_container)
-        test_frame.grid(row=0, column=2, padx=0, pady=2, sticky="ew")  # Same here, align horizontally
-
-        
-        self.home_button = ttk.Button(home_frame, text="Home", command=self.zeroRobotJoints, style="secondary.TButton", width=self.button_width2)
-        self.home_button.pack(side=tk.TOP, pady=2, padx=self.padding, fill=tk.X)
-        
-        self.retract_button = ttk.Button(retract_frame, text="Retract", command=self.goToRetract, style="secondary.TButton", width=self.button_width2)
-        self.retract_button.pack(side=tk.TOP, pady=2, padx=self.padding, fill=tk.X)
-
-        self.test_button = ttk.Button(test_frame, text="Test", command=self.moveToStart, style="secondary.TButton", width=self.button_width2)
-        self.test_button.pack(side=tk.TOP, pady=2, padx=self.padding, fill=tk.X)
-
-        self.test_button = ttk.Button(frame, text="Reset Errors", command=self.moveToStart, style="primary.TButton", width=int(self.textbox_width -3))
-        self.test_button.pack(side=tk.TOP, pady=2, padx=self.padding, fill=tk.X)
-
        
-    
 
-        # -------------------------------
-        # 4) Align Axis 
-        # -------------------------------
-
-        self.padFrame = tk.Frame(frame)
-        self.padFrame.pack(pady=15, padx=0)
-        
-        self.goto_vector_label = ttk.Label(frame, text="Align:", style="heading.TLabel", anchor="w")
-        self.goto_vector_label.pack(pady=2, padx=0, anchor="w")
-
-        self.align_axis_frame = tk.Frame(frame)
-        self.align_axis_frame.pack(side=tk.TOP, padx=10, pady=10, fill=tk.X)
-
-        # Create checkboxes for each axis in a single row.
-        self.align_vars = {}  # We'll store the IntVars in a dictionary.
-        for i, axis in enumerate(["X", "Y", "Z", "U", "V", "W"]):
-            var = tk.IntVar(value=self.config_data["Align Axis"][i])
-            self.align_vars[axis] = var
-            chk = tk.Checkbutton(self.align_axis_frame, text=axis, variable=var)
-            chk.grid(row=0, column=i, padx=6, pady=2)
-
-        self.align_button = ttk.Button(frame, text="Align", command=self.align, style="primary.TButton", width=int(self.textbox_width -3))
-        self.align_button.pack(side=tk.TOP, pady=1, fill=tk.X)
-            
-
-
-        # -------------------------------
-        # Axis Controls
-        # -------------------------------
-
-        self.padFrame = tk.Frame(frame)
-        self.padFrame.pack(pady=5, padx=0)
-
-        self.axis_controls_frame = tk.Frame(frame)
-        self.axis_controls_frame.pack(side=tk.TOP, padx=0, pady=0, fill=tk.X)
-
-        axes = ["X", "Y", "Z", "U", "V", "W"]
-        self.axis_buttons = {}
-
-        # Row 0: Axis labels
-        for i, axis in enumerate(axes):
-            lbl = ttk.Label(self.axis_controls_frame, text=axis, style="heading.TLabel", anchor="center")
-            lbl.grid(row=0, column=i, padx=1, pady=2)
-
-        # Row 1: Plus buttons
-        for i, axis in enumerate(axes):
-            plus_button = ttk.Button(self.axis_controls_frame, text="+", width=3, style="secondary.TButton")
-            plus_button.grid(row=1, column=i, padx=1, pady=2)
-            plus_button.bind("<ButtonPress-1>", lambda event, idx=i: self.jogRobot(idx, +1))
-            plus_button.bind("<ButtonRelease-1>", lambda event: self.stopJog())
-            self.axis_buttons[axis] = {"plus": plus_button}
-
-        # Row 2: Minus buttons
-        for i, axis in enumerate(axes):
-            minus_button = ttk.Button(self.axis_controls_frame, text="-", width=3, style="secondary.TButton")
-            minus_button.grid(row=2, column=i, padx=1, pady=2)
-            minus_button.bind("<ButtonPress-1>", lambda event, idx=i: self.jogRobot(idx, -1))
-            minus_button.bind("<ButtonRelease-1>", lambda event: self.stopJog())
-            self.axis_buttons[axes[i]]["minus"] = minus_button
-
-
-        # -------------------------------
-        # 1) Frame: Test/Data Buttons
-        # -------------------------------
-        
         self.padFrame = tk.Frame(frame)
         self.padFrame.pack(pady=20, padx=0)
-
-
-        test_buttons_container = tk.Frame(frame)
-        test_buttons_container.pack(side=tk.TOP, padx=0, pady=2)
-
-        # Create sub-frames for left and right
-        start_test_frame = tk.Frame(test_buttons_container)
-        start_test_frame.grid(row=0, column=0, padx=0, pady=2, sticky="ew")  # Use grid and fill horizontally
-
-        save_data_frame = tk.Frame(test_buttons_container)
-        save_data_frame.grid(row=0, column=1, padx=0, pady=2, sticky="ew")  # Same here, align horizontally
-
-
-        self.clear_button = ttk.Button(start_test_frame, text="Clear Graph", style="secondary.TButton", command=self.clearGraph,width=self.button_width)
-        self.clear_button.pack(side=tk.TOP, pady=2, padx=self.padding, fill=tk.X)
-
-        self.save_button = ttk.Button(save_data_frame, text="Save Test Data", command=self.saveData, style="secondary.TButton", width=self.button_width)
-        self.save_button.pack(side=tk.TOP, pady=2, padx=self.padding,fill=tk.X)
-
-
-        self.start_button = ttk.Button(frame, text="Start Test", command=self.start_test, style="start.TButton", width=int(self.textbox_width -3))
-        self.start_button.pack(side=tk.TOP, pady=2, padx=self.padding, fill=tk.X)
-
-        self.stop_button = ttk.Button(frame, text="Stop Test", command=self.stop_test, style="primary.TButton", width=int(self.textbox_width -3))
-        self.stop_button.pack(side=tk.TOP, pady=2, padx=self.padding, fill=tk.X)
 
 
         # -------------------------------
@@ -410,9 +204,29 @@ class SimpleApp:
 
 
         self.canvas.get_tk_widget().pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        
+
+
+        self.test_setup_page = SetupTestPage(frame, self, self.config_data)
+        self.run_test_page = RunTestPage(frame, self, self.config_data)
+
+        self.menu_pages = {
+            "Setup": self.test_setup_page,
+            "Run": self.run_test_page
+        }
 
         self.check_textbox()
         self.clearGraph()
+
+        # Show the initial page
+        self.show_page("Setup")
+
+
+    def show_page(self, page_name):
+            """Swap the left-side content with the selected page."""
+            for page in self.menu_pages.values():
+                page.pack_forget()  # Hide all pages
+            self.menu_pages[page_name].pack(fill="both", expand=True)  # Show selected page
 
 
     def importConfig(self):
@@ -461,11 +275,13 @@ class SimpleApp:
 
 
     def saveConfig(self, autosave):
+        self.config_data["robotIP"] = self.config_data["Robot IP"]
+        self.config_data["sensorPort"] = self.config_data["Sensor Port"]
         self.config_data["Test Name"] = self.test_name
-        self.config_data["Start Pose"] = self.get_start_pose_values().tolist()
-        self.config_data["Test Vector"] = self.get_test_vector_values().tolist()
-        self.config_data["Retract Vector"] = self.get_retract_vector_values().tolist()
-        self.config_data["Align Axis"] = self.get_checkbox_values().tolist()
+        self.config_data["Start Pose"] = self.test_setup_page.get_start_pose_values().tolist()
+        self.config_data["Test Vector"] = self.test_setup_page.get_test_vector_values().tolist()
+        self.config_data["Retract Vector"] = self.test_setup_page.get_retract_vector_values().tolist()
+        self.config_data["Align Axis"] = self.run_test_page.get_checkbox_values().tolist()
         
         try:
             if autosave:
@@ -494,71 +310,11 @@ class SimpleApp:
         self.test_name = self.text_var.get()
         self.fileName = f"{self.test_name}{timestamp}.csv"
     
-    def zeroRobotJoints(self):
-        self.saveConfig(True)
-        self.test.robot.moveToPos(np.zeros(6))
-        self.updateGraph()
-
-    def goToRetract(self):
-        self.saveConfig(True)
-        self.test.goToRetract( self.config_data["Start Pose"], self.config_data["Retract Vector"])
-        self.updateGraph()
-
-    def moveToStart(self):
-        self.saveConfig(True)
-        start_pose = np.array(self.get_start_pose_values())
-        self.test.robot.moveToPos(start_pose)
-        self.updateGraph()
-
-
-    def align(self):
-        self.testActive = False
-        self.alignActive = True
-
-        self.clearGraph()
-        self.test.setAlignVector(self.get_checkbox_values())
-
-        try:
-            while self.alignActive:
-                if(self.test.align()):
-                    self.alignActive = False
-                    self.getData()
-                    self.updateGraph()
-                self.root.update_idletasks()
-                self.root.update()
-
-        except tk.TclError:
-            pass
-
-
-    def start_test(self):
-        self.testActive = True
-        self.alignActive = False
-
-        self.clearGraph()
-        self.setFileName()
-        self.saveConfig(True)
-
-        self.test.setTestVector(self.get_test_vector_values())
-
-        try:
-            while self.testActive:
-                if self.test.runTest():
-                    self.testActive = False
-                    self.getData()
-                    self.updateGraph()
-                self.root.update_idletasks()
-                self.root.update()
-                
-        except tk.TclError:
-            pass
-
     def getData(self):
         self.data[0:self.test.dataIndex-1, 0] = self.test.getXData()[0:self.test.dataIndex-1, 0]
         self.data[0:self.test.dataIndex-1, 1:7] = self.test.getWrencheData()[0:self.test.dataIndex-1, 0:6]
         # print(self.data[0:self.test.dataIndex])
         # print(self.test.getXData())
-
 
     def updateGraph(self):
         self.update_pose_display()
@@ -575,12 +331,15 @@ class SimpleApp:
         self.ax2.relim(); self.ax2.autoscale_view()
 
         if self.testActive:
-            if (np.any(self.get_test_vector_values()[3:6]) and not np.any(self.get_test_vector_values()[0:3])):
+            if (np.any(self.config_data["Start Pose"][3:6]) and not np.any(self.config_data["Start Pose"][0:3])):
                 self.ax1.set_xlabel("Angle (deg)")
                 self.ax2.set_xlabel("Angle (deg)")
             else:
                 self.ax1.set_xlabel("Distance (mm)")
                 self.ax2.set_xlabel("Distance (mm)")
+        else:
+            self.ax1.set_xlabel("Time (ms)")
+            self.ax2.set_xlabel("Time (ms)")
 
         self.canvas.draw()
 
@@ -588,58 +347,6 @@ class SimpleApp:
         self.data = np.zeros((2000, 7))
         self.test.clearData()
         self.updateGraph()
-
-    def stop_test(self):
-        self.testActive = False
-        self.alignActive = False
-        self.getData()
-        self.updateGraph()
-        # self.writeCSV()
-
-
-    def get_checkbox_values(self):
-        # Return the values in the order: X, Y, Z, U, V, W.
-        return np.array([
-            self.align_vars["X"].get(),
-            self.align_vars["Y"].get(),
-            self.align_vars["Z"].get(),
-            self.align_vars["U"].get(),
-            self.align_vars["V"].get(),
-            self.align_vars["W"].get()
-        ])
-
-
-    def get_test_vector_values(self):
-        """Return float values from the Test Motion text boxes as a numpy array."""
-        values = []
-        for entry in self.test_motion_entries:
-            try:
-                values.append(float(entry.get()))
-            except ValueError:
-                values.append(0.0)
-        return np.array(values)
-
-    def get_retract_vector_values(self):
-        """Return float values from the Test Motion text boxes as a numpy array."""
-        values = []
-        for entry in self.retract_vector_entries:
-            try:
-                values.append(float(entry.get()))
-            except ValueError:
-                values.append(0.0)
-        return np.array(values)
-
-
-    def get_start_pose_values(self):
-        """Return the values from the start pose text boxes as a numpy array of floats."""
-        values = []
-        for entry in self.start_pose_entries:
-            try:
-                values.append(float(entry.get()))
-            except ValueError:
-                # If conversion fails, default to 0.0
-                values.append(0.0)
-        return np.array(values)
 
 
     def update_pose_display(self):
@@ -651,37 +358,7 @@ class SimpleApp:
             entry.insert(0, f"{val:.2f}")  # Format to 2 decimal places (adjust as needed)
             entry.config(state="readonly")
 
-    def jogRobot(self, axis, direction):
-        
-        jog_vector = np.array([[1, 0, 0, 0, 0, 0],
-                                [0, 1, 0, 0, 0, 0],
-                                [0, 0, 1, 0, 0, 0],
-                                [0, 0, 0, 1, 0, 0],
-                                [0, 0, 0, 0, 1, 0],
-                                [0, 0, 0, 0, 0, 1]])
-
-        jog = np.array(direction * jog_vector[axis, :])
-        self.jogActive = True
-        
-        while self.jogActive:
-            self.test.jogRobot(jog)
-            self.getData()
-            self.updateGraph()
-            # print("Jog")
-            self.root.update_idletasks()
-            self.root.update()
-
-
-    def stopJog(self):
-        self.jogActive = False
-
-    def saveData(self):
-        self.test.writeCSV(self.fileName)
-    
-    def resetError(self):
-        print("TODO: RESET ROBOT ERROR")
-
-
+   
 def main():
 
     root = tk.Tk()

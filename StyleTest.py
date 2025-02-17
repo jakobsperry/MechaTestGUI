@@ -1,36 +1,67 @@
 import tkinter as tk
-from tkinter import ttk
 
-def on_button_click():
-    """Change the window background and display an excited message when clicked!"""
-    # Change the background color to something exciting!
-    root.config(bg='yellow')
-    message_label.config(text="WOW! You clicked the button!! 🎉🎉🎉", fg="red", font=("Helvetica", 18, "bold"))
-    button.config(state=tk.DISABLED)  # Disable the button once clicked
+class PageManager(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Partial Page Switching")
+        self.geometry("500x300")
 
-    # Let's change the window size to make it feel more grand!
-    root.geometry("500x500")
+        # Main container frame
+        self.main_frame = tk.Frame(self)
+        self.main_frame.pack(fill="both", expand=True)
 
-    # Show a message box with excitement!
-    print("🎉🎉🎉 YOU DID IT! 🎉🎉🎉")
+        # Left side (Dynamic)
+        self.left_frame = tk.Frame(self.main_frame, width=250, height=300, bg="lightgray")
+        self.left_frame.pack(side="left", fill="both", expand=True)
 
-root = tk.Tk()
-root.title("Excitement Central 🚀")
+        # Right side (Static)
+        self.right_frame = tk.Frame(self.main_frame, width=250, height=300, bg="white")
+        self.right_frame.pack(side="right", fill="both")
 
-# Set the initial size of the window
-root.geometry("400x400")
+        # Static content in right frame
+        tk.Label(self.right_frame, text="Static Right Panel", font=("Arial", 14)).pack(pady=20)
 
-# Create a label that will display the excited message
-message_label = ttk.Label(root, text="Welcome to the Excitement Zone!", font=("Helvetica", 16), anchor="center")
-message_label.pack(pady=50)
+        # Navigation buttons
+        btn_frame = tk.Frame(self)
+        btn_frame.pack(side="bottom", fill="x")
+        tk.Button(btn_frame, text="Settings", command=lambda: self.show_page("Settings")).pack(side="left")
+        tk.Button(btn_frame, text="Test", command=lambda: self.show_page("Test")).pack(side="left")
+        tk.Button(btn_frame, text="About", command=lambda: self.show_page("About")).pack(side="left")
 
-# Create a style object to make the button taller and change its appearance
-style = ttk.Style()
-style.configure("TButton", font=("Helvetica", 16), padding=(20, 30))  # Adjust padding for height
+        # Dictionary to hold dynamic pages
+        self.pages = {
+            "Settings": SettingsPage(self.left_frame),
+            "Test": TestPage(self.left_frame),
+            "About": AboutPage(self.left_frame)
+        }
 
-# Create the button that will trigger excitement! Now taller!
-button = ttk.Button(root, text="Click me for fun!", command=on_button_click, style="TButton")
-button.pack(pady=20)
+        # Show default page
+        self.show_page("Settings")
 
-# Start the main event loop
-root.mainloop()
+    def show_page(self, page_name):
+        """Swap the left-side content with the selected page."""
+        for page in self.pages.values():
+            page.pack_forget()  # Hide all pages
+        self.pages[page_name].pack(fill="both", expand=True)  # Show selected page
+
+# Page Definitions
+class SettingsPage():
+    def __init__(self, frame, parent):
+        
+        super().__init__(parent, bg="lightblue")
+        tk.Label(self, text="Settings Page", font=("Arial", 14), bg="lightblue").pack(pady=20)
+
+class TestPage(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent, bg="lightgreen")
+        tk.Label(self, text="Test Page", font=("Arial", 14), bg="lightgreen").pack(pady=20)
+
+class AboutPage(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent, bg="lightcoral")
+        tk.Label(self, text="About Page", font=("Arial", 14), bg="lightcoral").pack(pady=20)
+
+# Run Application
+if __name__ == "__main__":
+    app = PageManager()
+    app.mainloop()

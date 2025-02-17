@@ -1,14 +1,20 @@
 {
-    "Robot IP": "192.169.0.100",
-    "Sensor Port": "en13",
-    "Test Name": "Config Test",
+    "Test Name": "Dial Test",
     "Start Pose": [
         218.0,
         0.0,
         100.0,
-        180.0,
         0.0,
-        -180.0
+        0.0,
+        0.0
+    ],
+    "Test Motion": [
+        0.0,
+        0.0,
+        -10.0,
+        0.0,
+        0.0,
+        0.0
     ],
     "Retract Vector": [
         0.0,
@@ -18,22 +24,20 @@
         0.0,
         0.0
     ],
+    "Align Axis": [
+        1,
+        1,
+        0,
+        1,
+        1,
+        0
+    ],
     "Test Vector": [
         0.0,
         0.0,
-        100.0,
         0.0,
         0.0,
-        0.0
-    ],
-    "Align Axis": [
-        1,
-        0,
-        0,
-        0,
-        0,
-        0
-    ],
-    "robotIP": "192.169.0.100",
-    "sensorPort": "en13"
+        0.0,
+        60.0
+    ]
 }
